@@ -1,0 +1,99 @@
+import { useState, useEffect } from "react";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+const ItemType = "TASK";
+
+const Task = ({ task, index, moveTask, updateTask, deleteTask }) => {
+  const [{ isDragging }, drag] = useDrag({
+    type: ItemType,
+    item: { index },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging(),
+    }),
+  });
+
+  const [, drop] = useDrop({
+    accept: ItemType,
+    hover: (draggedItem) => {
+      if (draggedItem.index !== index) {
+        moveTask(draggedItem.index, index);
+        draggedItem.index = index;
+      }
+    },
+  });
+
+  return (
+    <Card ref={(node) => drag(drop(node))} className={`p-2 my-2 ${isDragging ? "opacity-50" : ""}`}>
+      <CardContent className="flex justify-between items-center">
+        <input
+          type="text"
+          value={task.text}
+          onChange={(e) => updateTask(index, e.target.value)}
+          className="border-none bg-transparent focus:outline-none"
+        />
+        <div className="flex gap-2">
+          <Button onClick={() => deleteTask(index)}>❌</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default function TaskManager() {
+  const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState("");
+  
+  useEffect(() => {
+    const storedTasks = JSON.parse(localStorage.getItem("tasks")) || [];
+    setTasks(storedTasks);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  const addTask = () => {
+    if (newTask.trim()) {
+      setTasks([...tasks, { text: newTask }]);
+      setNewTask("");
+    }
+  };
+
+  const updateTask = (index, text) => {
+    const updatedTasks = [...tasks];
+    updatedTasks[index].text = text;
+    setTasks(updatedTasks);
+  };
+
+  const deleteTask = (index) => {
+    setTasks(tasks.filter((_, i) => i !== index));
+  };
+
+  const moveTask = (fromIndex, toIndex) => {
+    const updatedTasks = [...tasks];
+    const [movedTask] = updatedTasks.splice(fromIndex, 1);
+    updatedTasks.splice(toIndex, 0, movedTask);
+    setTasks(updatedTasks);
+  };
+
+  return (
+    <DndProvider backend={HTML5Backend}>
+      <div className="max-w-md mx-auto p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <h2 className="text-xl font-bold mb-4 text-center">Task Manager</h2>
+        <div className="flex gap-2 mb-4">
+          <Input value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="New Task" />
+          <Button onClick={addTask}>Add</Button>
+        </div>
+        <div>
+          {tasks.map((task, index) => (
+            <Task key={index} task={task} index={index} moveTask={moveTask} updateTask={updateTask} deleteTask={deleteTask} />
+          ))}
+        </div>
+      </div>
+    </DndProvider>
+  );
+}
